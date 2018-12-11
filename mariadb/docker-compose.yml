@@ -1,0 +1,25 @@
+version: '3'
+
+services:
+  # Database server
+  db:
+    image: mariadb
+    command: --transaction-isolation=READ-COMMITTED --binlog-format=ROW
+    restart: always
+#    ports:
+#      - 3306:3306
+    volumes:
+      - mariadb:/var/lib/mysql
+      - ./conf.d:/etc/mysql/conf.d
+    environment:
+      - NETWORK_ACCESS=internal # env var for docker-gen; supposedly not needed (since no port exposed/hostname mentioned), but remains in place just to be sure...
+    env_file:
+#      - db_root.env
+    networks:
+      - data-tier
+
+volumes:
+  mariadb:
+
+networks:
+  data-tier:

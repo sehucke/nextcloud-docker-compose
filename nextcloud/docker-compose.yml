@@ -1,0 +1,74 @@
+version: '3'
+
+services:
+  # Redis cache
+  redis:
+    image: redis:alpine
+    restart: always
+
+  # Nextcloud (php-fpm)
+  app:
+    build: ./app
+    restart: always
+    volumes:
+      - nextcloud:/var/www/html
+      - nc-custom_apps:/var/www/html/custom_apps
+      - nc-config:/var/www/html/config
+      - nc-data:/var/www/data:rw
+#    environment:
+#      MYSQL_ROOT_PASSWORD: example
+#    env_file:
+#      - ./autoconfigure.env
+    networks:
+      - data-tier
+      - default
+    depends_on:
+      - redis
+
+  # Webserver for Nextcloud (php-fpm)
+  web:
+    build: ./web
+    restart: always
+    volumes:
+      - nextcloud:/var/www/html:ro
+      - nc-custom_apps:/var/www/html/custom_apps:ro
+    environment:
+      VIRTUAL_HOST: my.domain.tld
+      SSL_POLICY: Mozilla-Modern
+      HSTS: 'max-age=15768000; includeSubDomains; preload;'
+      LETSENCRYPT_HOST: my.domain.tld
+      LETSENCRYPT_EMAIL: me@domain.tld
+    depends_on:
+      - app
+    networks:
+      - proxy-tier
+      - default
+
+  cron:
+    build: ./app
+    restart: always
+    volumes:
+      - nextcloud:/var/www/html
+      - nc-custom_apps:/var/www/html/custom_apps
+      - nc-config:/var/www/html/config
+      - nc-data:/var/www/data:rw
+    entrypoint: /cron.sh
+    networks:
+      - data-tier
+      - default
+    depends_on:
+      - redis
+
+volumes:
+  nextcloud:
+  nc-custom_apps:
+  nc-config:
+  nc-data:
+
+networks:
+  proxy-tier:
+    external:
+      name: myproxy_proxy-tier
+  data-tier:
+    external:
+      name: mariadb_data-tier
